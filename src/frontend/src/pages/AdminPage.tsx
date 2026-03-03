@@ -24,6 +24,7 @@ import { useEffect, useId, useState } from "react";
 import { toast } from "sonner";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import {
+  useClaimAdmin,
   useGoogleMapsUrl,
   useIsAdmin,
   useReviews,
@@ -54,7 +55,9 @@ export default function AdminPage() {
 
   const updateMapsMutation = useUpdateGoogleMapsUrl();
   const updateReviewsMutation = useUpdateReviews();
+  const claimAdminMutation = useClaimAdmin();
 
+  const [adminTokenInput, setAdminTokenInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([]);
   const [newReview, setNewReview] = useState("");
@@ -202,8 +205,19 @@ export default function AdminPage() {
     );
   }
 
-  // Not admin
+  // Not admin — show claim form
   if (!isAdmin) {
+    const handleClaimAdmin = async () => {
+      if (!adminTokenInput.trim()) return;
+      try {
+        await claimAdminMutation.mutateAsync(adminTokenInput.trim());
+        toast.success("Admin access granted! Reloading...");
+        setTimeout(() => window.location.reload(), 1000);
+      } catch {
+        toast.error("Invalid admin token. Please check and try again.");
+      }
+    };
+
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <AdminHeader onLogout={clear} />
@@ -211,21 +225,57 @@ export default function AdminPage() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-6 max-w-sm text-center"
+            className="flex flex-col items-center gap-6 max-w-sm w-full"
           >
-            <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center border border-destructive/30">
-              <ShieldOff className="w-7 h-7 text-destructive" />
+            <div className="w-16 h-16 rounded-2xl bg-gold/10 flex items-center justify-center border border-gold/20">
+              <ShieldOff className="w-7 h-7 text-gold" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 text-center">
               <h2 className="font-display text-2xl font-semibold text-foreground">
-                Access Denied
+                Enter Admin Token
               </h2>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Your account does not have admin privileges.
+                Paste your admin token to activate admin access for this
+                account.
               </p>
             </div>
-            <Button variant="outline" onClick={clear} className="gap-2">
-              <LogOut className="w-4 h-4" />
+            <div className="w-full space-y-3">
+              <Input
+                data-ocid="admin.token_input"
+                type="password"
+                placeholder="Admin token..."
+                value={adminTokenInput}
+                onChange={(e) => setAdminTokenInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleClaimAdmin();
+                }}
+                className="bg-input border-border text-foreground placeholder:text-muted-foreground/50"
+              />
+              <Button
+                data-ocid="admin.submit_button"
+                onClick={handleClaimAdmin}
+                disabled={
+                  claimAdminMutation.isPending || !adminTokenInput.trim()
+                }
+                className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                {claimAdminMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <LogIn className="w-4 h-4" />
+                )}
+                {claimAdminMutation.isPending
+                  ? "Verifying..."
+                  : "Activate Admin"}
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clear}
+              className="gap-1.5 text-xs text-muted-foreground"
+            >
+              <LogOut className="w-3.5 h-3.5" />
               Sign Out
             </Button>
           </motion.div>

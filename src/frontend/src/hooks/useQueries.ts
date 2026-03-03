@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { storeSessionParameter } from "../utils/urlParams";
 import { useActor } from "./useActor";
 
 export function useGoogleMapsUrl() {
@@ -63,6 +64,22 @@ export function useUpdateReviews() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    },
+  });
+}
+
+export function useClaimAdmin() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      if (!actor) throw new Error("Not connected");
+      // Store the token in session so the actor hook picks it up on next creation
+      storeSessionParameter("caffeineAdminToken", token);
+      await actor._initializeAccessControlWithSecret(token);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["isAdmin"] });
     },
   });
 }
